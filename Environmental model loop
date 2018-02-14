@@ -1,0 +1,49 @@
+# modelling my environmental effects can be a pain in the behind when using a stepwise approach
+# having to write them out one by one is time consuming and it has to be altered everytime I alter the underlying dataset
+setwd()
+library(lme4)
+library(plyr)
+
+data=YOURDATE
+
+
+# E.G
+# create base model of intrinsic random effects     
+bim <-lmer((nIncrement) ~ c.(log(nAge)) + c.(log(nAgeCap)) + (c.(log(nAge)) | fFishID) + (c.(log(nAge)) | fYear) + (c.(log(nAge)) | fYearClass),
+           REML = FALSE,data=data1933)
+
+# add individual environmental effects to base model
+bim2 <- update(bim,~.+c.(nMinT)) 
+bim3 <- update(bim,~.+c.(nMaxT)) 
+bim4 <- update(bim,~.+c.(nRain)) 
+bim5 <- update(bim,~.+c.(nFlow.cv)) 
+bim6 <- update(bim,~.+c.(nFlow.avg)) 
+
+#compare enviro effects using AICC
+models <- list(bim,bim2,bim3,bim4,bim5,bim6)
+model.sel(models)
+
+### Instead of having to write them all out manually, I can now just use this loop to create al 6 models 
+
+#prep
+vars <- c('nMinT','nMaxT','nRain','nFlow.cv','nFlow.avg') # define enviro variable names
+results <- list()  # create an empty list to store created models in
+
+#begin loop
+for(i in vars){
+  basecharacters <-  paste('nIncrement ~ c.(log(nAge)) + c.(log(nAgeCap)) + (c.(log(nAge))| fFishID) + (c.(log(nAge)) | fYear) + (c.(log(nAge)) | fYearClass)')#creates character vector for base intrinsic model formula
+  form <- as.formula(paste(basecharacters,"+c.(", i,")")) #creates formula, pastes base characters to environmental variable i, NOTE "+c.(" and ")" denotes the characters to surround i in formula
+  mod <- lmer(form,REML=FALSE,data=data1933) # fits lmer to data, using formula defined in above step
+  result[[i]] <- mod # stores result of this loop in result list
+}
+
+result  # gives the output of all models
+result$nRain # calls up a particular model, defined by i
+
+#compare enviro effects using AICC
+modelsLoop <- c(result,bim) # needed to add bim mannually, as base model is not included in loop
+model.sel(modelsLoop)
+
+#compare two different methods to ensure models fit correctly
+model.sel(models)
+model.sel(modelsLoop)
