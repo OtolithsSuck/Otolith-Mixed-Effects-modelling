@@ -1,0 +1,33 @@
+library(ggplot2)
+
+data=YOURDATA
+
+
+
+# Age plot
+#creates a plot for all individual fish Increment~Age
+
+#create mean increment data for years
+meanInc <- aggregate(nIncrement ~ nAge,data,mean)     
+c <- NULL
+c <- ggplot()
+c <- c + labs(y = "nIncrement")
+c <- c + labs(x = "Year")
+c <- c + geom_line(aes(x=nAge, y=(nIncrement),group=fFishID), alpha=0.3, data=data)
+c <- c + geom_line(aes(x=nAge, y=(nIncrement),group=1),size=1,data=meanInc) # mean data goes in here
+c <- c + theme_classic()
+c 
+
+
+### Year plot
+#plot individual fish growth for each year
+#add in mean data 
+c <- NULL
+c <- ggplot()
+c <- c + labs(y = "nIncrement")
+c <- c + labs(x = "Year")
+c <- c + geom_line(aes(x=fYear, y=c.(nIncrement),group=fFishID), alpha=0.3, data=data)
+c <- c + geom_line(aes(x=-1:60, y=0),col="red",lty=2)
+c <- c + geom_line(aes(x=fYear, y=c.(nIncrement),group=1),size=1,data=meanInc) # mean data read in hear
+c <- c + theme_classic()
+c 
