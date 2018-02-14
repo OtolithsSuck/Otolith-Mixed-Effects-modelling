@@ -4,7 +4,7 @@ setwd()
 library(lme4)
 library(plyr)
 
-data=YOURDATE
+data=YOURDATA
 
 
 # E.G
