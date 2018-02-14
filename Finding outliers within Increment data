@@ -1,0 +1,81 @@
+# Quick bit of code to detect outliers in nIncrement ~ Age
+# Very important to check, as they can heavily influence model predictions
+setwd("YOURWORKINGDIRECTORY")
+
+library(lme4)
+library(plyr)
+library(lattice)
+
+# Ensure data is in "wide" format, aka each Increment has its own row, assigned age, UID etc.
+# called raw to easily discern from outlier removed data later on
+raw= YOURDATASET
+
+############ visualise raw data, to inspect any obvious ouliers
+xyplotdata <- raw[order(raw$nAge),];  # this line just orders the dataset by nAge, takes away scribbly lines xyplot sometimes does
+xyplot(nIncrement ~ nAge, group=fFishID, main="raw data", type=c('l'),data=xyplotdata)
+
+par(mfrow=c(1,1))
+plot(nIncrement ~ nAge, main="raw data",data=raw)
+abline(lm(nIncrement~(nAge),data=raw),col="blue",lty=2)
+
+#loop that plots all individual fish's nIncrement ~ nAge
+par(mfrow=c(4,4))
+for(i in unique(raw$fFishID)){
+  data <- subset(raw, raw$fFishID==i)
+  plot(nIncrement~ (nAge),main= i, xlim= c(0,44), ylim=c(0,0.204),type="o", data=data)
+}
+
+##use boxplot() to look at obvious outliers
+# base R boxplot() generates a bar for median, box for Quantile 1 and Quantile 3 and whiskers for Q1 - 1.5* IQR
+par(mfrow=c(1,1))
+myboxplot <- boxplot(nIncrement ~ nAge, data = raw)
+
+#use the $out on boxplot to show what observations occur outside 1.5*IQR
+myboxplot$out          # generates the nIncrement values for obs outside whiskers
+myboxplot$group        # generates the nAge values for obs outside whiskers
+
+# this bit of code generates the IQR for each nAge and then applies a logical test of greater or lesser than Q3+1.5*IQR
+# then allocates an increment as an outlier "TRUE" or not an outlier "false"
+outlieradd <- ddply(raw, .(nAge), function(x) { # for each nAge within dataset, defined as x
+  Q1 <- quantile(x$nIncrement, probs = 0.25)    # calculates Quantil 1 for nAge bracket
+  Q3 <- quantile(x$nIncrement, probs = 0.75)    # "             "    3 for nAge bracket
+  IQR <- Q3 - Q1                                # calculates Interquartile range   for nAge bracket
+  x$outlier <- FALSE                            # creates new column "outlier", all values =False
+  x$outlier[x$nIncrement < (Q1-1.5*IQR) | x$nIncrement > (Q3+1.5*IQR)] <- TRUE   # logical test, does nIncrement value in row fall outside whiskers, if yes = TRUE
+  x # finishes functin
+})
+
+#creates a subset dataframe where outlier =TRUE, aka datapoints that are outliers
+outliers <- (outlieradd[outlieradd$outlier == T,])
+dim(outliers)                                     # how many outliers are there
+
+#it is a good idea to cross check your outliers with your boxplot$out values, although they will often be a little different
+outliers$nIncrement
+myboxplot$out
+
+#loop to plot fish whose contained outliers
+par(mfrow=c(4,4))
+for(i in outliers$fFishID){
+  data <- subset(raw, raw$fFishID==i)
+  plot(nIncrement~ (nAge),main= i, xlim= c(0,44), ylim=c(0,0.204),type="o", data=data)
+}
+
+### testing to see how many outliers were the final increment
+# this was done as a common mistake in otolith measurements is to include edge analysis
+# final increment is when Age of increment = Age of Capture
+# apply logical test-> does Age = Agecap, return fishID
+IDofOutliers <- (ifelse(outliers$nAge == outliers$nAgeCap,outliers$fFishID, NA)) # if true = print fFishID, if false=  print"NA"
+length(unique(IDofOutliers))-1   #-1 acccoutns for the one NA value in the unique string
+
+
+#finally remove the outliers from your raw dataset,
+dataout <- outlieradd[outlieradd$outlier==F,]      #selects rows where outlier = FALSE
+
+#replot using new data next to raw plots
+xyplotdata <- raw[order(raw$nAge),];# this line just orders the dataset by nAge, takes away scribbly lines xyplot sometimes does
+xyplot(nIncrement ~ nAge, group=fFishID, main="raw data", type=c('l'),data=xyplotdata)
+xyplotdataout <- dataout[order(dataout$nAge),];  # this line just orders the dataset by nAge, takes away scribbly lines xyplot sometimes does
+xyplot(nIncrement ~ nAge, group=fFishID, main="outlier removed", type=c('l'),data=xyplotdataout)
+
+myboxplot <- boxplot(nIncrement ~ nAge, main="raw data", data = raw)
+myboxplot <- boxplot(nIncrement ~ nAge, main="outliers removed", data = dataout)
