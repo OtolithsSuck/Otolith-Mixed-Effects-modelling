@@ -1,0 +1,25 @@
+# For wide growth data, where individual fish have a UID number
+# 
+#Input dataframe
+data= 
+  
+#loop to plot individual fish growth
+par(mfrow=c(4,4)) # set graphics to have 16 panes
+for(i in unique(data$fFishID)){                                     # for every UID of fish run the following
+  dataintstance <- subset(data, data$fFishID==i)                    # subset data to contain only 1 fishID
+  plot(nIncrement~ (nAge),main= i, type="o", data=dataintstance)    #plot the created data for this fish, then reccomence loop 
+}
+
+#NOTES
+# You may want to include a limit for X and Y axis, to allow easier comparison between charts
+# in this case just include " ,ylim= (c(lower,upper)), xlim= (c(lower,upper))," in the plot() component of loop
+  
+#loop to plot individual fish growth
+  par(mfrow=c(4,4))
+  for(i in unique(data$fFishID)){                                     # for every UID of fish (i) run the following commands
+    dataintstance <- subset(data, data$fFishID==i)                    # subset data to contain only 1 fishID
+    plot(nIncrement~ (nAge),main= i, type="o",data=dataintstance,     # next line of loop, says plot Inc ~Age for subsetted data
+         ylim=c(min(data$nIncrement),max(data$nIncrement)),           # Fancy instruction to set Y axis limits, to min and max extent of full dataset
+         xlim=c(min(data$nAge),max(data$nAge)))                       # Same for X axis limitsends loop 
+  }
+  
