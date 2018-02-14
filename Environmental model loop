@@ -27,7 +27,7 @@ model.sel(models)
 
 #prep
 vars <- c('nMinT','nMaxT','nRain','nFlow.cv','nFlow.avg') # define enviro variable names
-results <- list()  # create an empty list to store created models in
+result <- list()  # create an empty list to store created models in
 
 #begin loop
 for(i in vars){
