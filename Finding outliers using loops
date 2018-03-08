@@ -1,0 +1,112 @@
+#### Goal is to find the relative change for each growth increment, relative to the prior growth increment
+# Using the standard relative change formula of for relative change RC= Delta/reference = [(i)- (i-1)]/(i-1)
+# i.e. [(Increment @ Age=2 - Increment @ Age=1)]/Increment @ Age = 1  
+
+# finding this for all increments, allows us to calculate the mean RC at each Age, and detect any increment observations... 
+# ...that vary significantly from this value
+# this is especially valuable in data where individual's vary greatly in growth rate.
+
+
+setwd("//uofa/USERS$/users5/a1629605/_PhD/_R working directory/Relative change by loop")
+
+df <- read.csv("EXPORT_Initial_widegrowth_data.csv")
+
+library(ggplot2)
+
+# I want to find the Relative change between Increments at each age within the individuals
+
+#E.G the amount of change from age to age
+FISH1 <- df[which(df$fFishID==133),] # create dataset that only includes one fish
+df <- FISH1
+par(mfrow=c(1,1))
+plot(nIncrement~nAge,FISH1)
+
+# create statement that can extract increment at age X
+df[which(df$nAge==3),"nIncrement"] # extracts row where Age =3, then extracts increment value from that row
+RC <- ((df[which(df$nAge==3),"nIncrement"])-(df[which(df$nAge==2),"nIncrement"]))/(df[which(df$nAge==2),"nIncrement"])
+RC
+
+#check above statement is true with manual check
+df[,"nIncrement"]
+(0.1035-0.1079)/0.1079 # = -0.0242 WORKS!
+
+
+#attempt to create a loop that will do this for all ages 
+# and store that data in a list (temp)
+temp <- 0
+for(i in 1:nrow(df)){# for 1:12
+  if(i==1){
+    temp[i] <- 0 # assigns zero if Age =1 
+  }else{
+    temp[i] <- (df[which(df$nAge==i),"nIncrement"])-(df[which(df$nAge==i-1),"nIncrement"]) # extracts row for Age at i, then nIncrement, then takes prior increment
+    }
+}
+
+output <- data.frame(unlist(temp))
+output
+
+##### above loop worked when data was subsetted into one Fish, 
+# if I can successfully subset data into seperate fish, I can apply the above loop 
+df <- read.csv("EXPORT_Initial_widegrowth_data.csv")
+
+##### WORKING LOOP MY DOODS
+temp <- NULL
+RCtemp <- NULL
+RCstore <- data.frame(fFishID=numeric(),nAge=numeric(),RC=numeric()) #creates empty dataframe to store j loop results
+masterstore <- data.frame(RC=numeric())                             #creates empty dataframe to store each j loop's RESULT
+for(i in unique(df$fFishID)){ # for each individual fish(=1) do the fllowing
+    print(paste("ID",i))
+    datainstance <- subset(df, df$fFishID==i) #creates subset of just one fish
+    for(j in unique(datainstance$nAge)){      #for each Age(=j) do the following
+      if(j==1){              #if Age = 1, assign 0 (otherwise this messes up calculations using j)
+          print("ZERO")
+          RCstore[j,"nAge"] <- j               #add age to nAge column
+          RCstore[j,"RC"] <- 0                 #set RC to 0 for Age =1 
+      }else{
+          print(j)  #BELOW LINE= calculates the Relative Change for Increment @ Age=j,
+          RCtemp <- ((datainstance[which(datainstance$nAge==j),"nIncrement"])-(datainstance[which(datainstance$nAge==j-1),"nIncrement"]))/(datainstance[which(datainstance$nAge==j-1),"nIncrement"])
+          RCstore[j,"nAge"] <- j
+          RCstore[j,"RC"] <- RCtemp
+      }
+    }
+    print("end j loop")
+    RCstore[,"fFishID"] <- i # assigns the fishID to the column
+    masterstore <- rbind(masterstore,RCstore) #adds the RCstore to over storage term
+    RCstore <- data.frame(fFishID=numeric(),nAge=numeric(),RC=numeric())       #resets RC to empty for next iteration
+    print("end i loop")
+}
+
+masterstore
+plot(RC~nAge,data=masterstore)
+
+
+############### ETECT OUTLIERS BASED ON RELATIVE CHANGE  ###########
+# Below function does a few things simulataneously, details are at the end of each line 
+
+RCoutlier <- ddply(masterstore, .(nAge), function(x) { # opens function, defines dateframe=masterstore, nAge = variable dataset is split by
+  Q1 <- quantile(x$RC, probs = 0.25)                        # finds first quartile for data
+  Q3 <- quantile(x$RC, probs = 0.75)                           # finds third quartile
+  IQR <- Q3 - Q1                                                 # Calculates the Interquartile range  
+  x$RCoutliertest <- FALSE                                            # creats new column and assigns all fields "FALSE" by default
+  x$RCoutliertest[x$RC < (Q1-1.5*IQR) | x$RC > (Q3+1.5*IQR)] <- TRUE      #logical test for each row, if RC exceeds IQR range, it is classified as an outlier = TRUE
+  x
+})
+
+RCoutlier[which(RCoutlier$RCoutlier == TRUE),] # prints the ID and Age of outlier
+
+#merge the outlier dataset (RCoutlier) with the raw data, using fFishID and Age as common terms
+dfoutliers <- merge(df,RCoutlier, by= c("fFishID","nAge"))
+str(dfoutliers)
+
+#plot to see if ouliers make sense
+RC <- NULL
+RC <- ggplot()
+RC <- RC + ggtitle("Outliers by Relative change")
+RC <- RC + labs(y = "nIncrement")
+RC <- RC + labs(x = "Age")
+RC <- RC + geom_point(aes(x=nAge, y=nIncrement,colour=RCoutliertest),data=dfoutliers)
+RC <- RC + theme_classic()
+RC
+
+
+write.csv(masterstore, "EXPORT_Relative_change_loop.csv")
